@@ -39,7 +39,23 @@ function addFromFirstRequest(page, params) {
 module.exports = {
   harFromMessages(messages, options) {
     options = Object.assign({}, defaultOptions, options);
-
+    var pageEventFound=messages.find(function(element) {
+      return element.method.startsWith("Page") ;
+    });
+    if (!pageEventFound) {
+      var newPageEvent=new Object()
+      newPageEvent.method="Page.frameScheduledNavigation"
+      newPageEvent.params=new Object()
+      var frameIdFound=messages.find(function(element) {
+        if(element.params)
+        {
+        return ('frameId' in element.params)
+          }  ;
+      });
+      newPageEvent.params.frameId=frameIdFound.params.frameId;
+      messages.unshift(newPageEvent);
+        
+    }
     const ignoredRequests = new Set(),
       rootFrameMappings = new Map();
 
@@ -92,7 +108,7 @@ module.exports = {
             if (responsesWithoutPage.length > 0) {
               for (let params of responsesWithoutPage) {
                 let entry = entries.find(
-                  entry => entry._requestId === params.requestId
+                  entry => entry.__requestId === params.requestId
                 );
                 if (entry) {
                   populateEntryFromResponse(
@@ -150,7 +166,7 @@ module.exports = {
               startedDateTime: '',
               __requestWillBeSentTime: params.timestamp,
               __wallTime: params.wallTime,
-              _requestId: params.requestId,
+              __requestId: params.requestId,
               __frameId: params.frameId,
               _initialPriority: request.initialPriority,
               _priority: request.initialPriority,
@@ -189,10 +205,10 @@ module.exports = {
 
             if (params.redirectResponse) {
               const previousEntry = entries.find(
-                entry => entry._requestId === params.requestId
+                entry => entry.__requestId === params.requestId
               );
               if (previousEntry) {
-                previousEntry._requestId += 'r';
+                previousEntry.__requestId += 'r';
                 populateEntryFromResponse(
                   previousEntry,
                   params.redirectResponse,
@@ -244,7 +260,7 @@ module.exports = {
             }
 
             const entry = entries.find(
-              entry => entry._requestId === params.requestId
+              entry => entry.__requestId === params.requestId
             );
             if (!entry) {
               debug(
@@ -277,12 +293,12 @@ module.exports = {
             }
 
             let entry = entries.find(
-              entry => entry._requestId === params.requestId
+              entry => entry.__requestId === params.requestId
             );
 
             if (!entry) {
               entry = entriesWithoutPage.find(
-                entry => entry._requestId === params.requestId
+                entry => entry.__requestId === params.requestId
               );
             }
             if (!entry) {
@@ -332,7 +348,7 @@ module.exports = {
             }
 
             const entry = entries.find(
-              entry => entry._requestId === params.requestId
+              entry => entry.__requestId === params.requestId
             );
             if (!entry) {
               debug(
@@ -342,7 +358,10 @@ module.exports = {
               );
               continue;
             }
+            if (entry.response)
+            {
             entry.response.content.size += params.dataLength;
+          }
           }
           break;
 
@@ -358,7 +377,7 @@ module.exports = {
             }
 
             const entry = entries.find(
-              entry => entry._requestId === params.requestId
+              entry => entry.__requestId === params.requestId
             );
             if (!entry) {
               debug(
@@ -370,6 +389,7 @@ module.exports = {
             }
 
             const timings = entry.timings;
+            if (timings) {
             timings.receive = formatMillis(
               (params.timestamp - entry._requestTime) * 1000 -
                 entry.__receiveHeadersEnd
@@ -381,14 +401,14 @@ module.exports = {
               timings.send +
               timings.wait +
               timings.receive;
-
+            }
             // For cached entries, Network.loadingFinished can have an earlier
             // timestamp than Network.dataReceived
 
             // encodedDataLength will be -1 sometimes
             if (params.encodedDataLength >= 0) {
               const response = entry.response;
-
+              if (response) {
               response._transferSize = params.encodedDataLength;
               response.bodySize = params.encodedDataLength;
 
@@ -403,6 +423,7 @@ module.exports = {
               if (compression > 0) {
                 response.content.compression = compression;
               }
+              } 
             }
           }
           break;
@@ -464,7 +485,7 @@ module.exports = {
             }
 
             const entry = entries.find(
-              entry => entry._requestId === params.requestId
+              entry => entry.__requestId === params.requestId
             );
             if (!entry) {
               debug(
@@ -483,7 +504,7 @@ module.exports = {
               })`
             );
             entries = entries.filter(
-              entry => entry._requestId !== params.requestId
+              entry => entry.__requestId !== params.requestId
             );
           }
           break;
@@ -491,7 +512,7 @@ module.exports = {
         case 'Network.resourceChangedPriority':
           {
             const entry = entries.find(
-              entry => entry._requestId === params.requestId
+              entry => entry.__requestId === params.requestId
             );
 
             if (!entry) {
