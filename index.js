@@ -54,8 +54,10 @@ module.exports = {
       });
       if  (!frameIdFound) {
         newPageEvent.params.frameId='root';
-      }  
+      }
+      else { 
       newPageEvent.params.frameId=frameIdFound.params.frameId;
+      }
       messages.unshift(newPageEvent);
         
     }
